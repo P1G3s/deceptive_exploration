@@ -1,0 +1,2 @@
+#/bin/bash
+python3.6 train.py --scenario simple_deception --display --num-adversaries 1 --max-episode-len 100

@@ -1,2 +1,2 @@
-#/bin/bash
-python3.6 train.py --scenario simple_deception --num-adversaries 1 --num-episodes 10000 --exp-name exp --restore
+#!/bin/bash
+python3.6 train.py --scenario simple_deception --num-adversaries 1 --num-episodes 20000 --exp-name exp --restore

@@ -3,6 +3,8 @@ import numpy as np
 import tensorflow as tf
 import time
 import pickle
+from pathlib import Path
+from tensorboardX import SummaryWriter
 
 import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '../../..'))
@@ -18,7 +20,7 @@ def parse_args():
     parser.add_argument("--scenario", type=str, default="simple", help="name of the scenario script")
     parser.add_argument("--max-episode-len", type=int, default=25, help="maximum episode length")
     parser.add_argument("--num-episodes", type=int, default=60000, help="number of episodes")
-    parser.add_argument("--num-adversaries", type=int, default=0, help="number of adversaries")
+    parser.add_argument("--num-adversaries", type=int, default=1, help="number of adversaries")
     parser.add_argument("--good-policy", type=str, default="maddpg", help="policy for good agents")
     parser.add_argument("--adv-policy", type=str, default="maddpg", help="policy of adversaries")
     # Core training parameters
@@ -29,7 +31,7 @@ def parse_args():
     # Checkpointing
     parser.add_argument("--exp-name", type=str, default=None, help="name of the experiment")
     parser.add_argument("--save-dir", type=str, default="./policy/", help="directory in which training state and model should be saved")
-    parser.add_argument("--save-rate", type=int, default=500, help="save model once every time this many episodes are completed")
+    parser.add_argument("--save-rate", type=int, default=1000, help="save model once every time this many episodes are completed")
     parser.add_argument("--load-dir", type=str, default="./policy/", help="directory in which training state and model are loaded")
     # Evaluation
     parser.add_argument("--restore", action="store_true", default=False)
@@ -59,16 +61,15 @@ def make_env(scenario_name, arglist, benchmark=False):
     world = scenario.make_world()
     # create multiagent environment
     if benchmark:
-        env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data)
+        env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, info_callback=scenario.info_callback, done_callback=scenario.done_callback)
     else:
-        env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation)
+        env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=scenario.info_callback, done_callback=scenario.done_callback)
     return env
 
 def get_trainers(env, num_adversaries, obs_shape_n, arglist):
     trainers = []
     model = mlp_model
     trainer = MADDPGAgentTrainer
-    print(str(env.n))
     for i in range(num_adversaries):
         trainers.append(trainer(
             "agent_%d" % i, model, obs_shape_n, env.action_space, i, arglist,
@@ -84,6 +85,11 @@ def train(arglist):
     with U.single_threaded_session():
         # Create environment
         env = make_env(arglist.scenario, arglist, arglist.benchmark)
+        # Create logger
+        log_dir = Path('./logs')
+        if not log_dir.exists():
+            os.makedirs(log_dir)
+        logger = SummaryWriter(str(log_dir))
         # Create agent trainers
         obs_shape_n = [env.observation_space[i].shape for i in range(env.n)]
         num_adversaries = min(env.n, arglist.num_adversaries)
@@ -118,8 +124,11 @@ def train(arglist):
             # environment step
             new_obs_n, rew_n, done_n, info_n = env.step(action_n)
             episode_step += 1
-            done = all(done_n)
+            done = any(done_n)
             terminal = (episode_step >= arglist.max_episode_len)
+            # if terminal:
+            #     rew_n[0] += 100     #adversary
+            #     rew_n[1] -= 100     #adversary
             # collect experience
             for i, agent in enumerate(trainers):
                 agent.experience(obs_n[i], action_n[i], rew_n[i], new_obs_n[i], done_n[i], terminal)
@@ -163,7 +172,8 @@ def train(arglist):
             for agent in trainers:
                 agent.preupdate()
             for agent in trainers:
-                loss = agent.update(trainers, train_step)
+                # log here
+                loss = agent.update(trainers, train_step, logger)
 
             # save model, display training output
             if terminal and (len(episode_rewards) % arglist.save_rate == 0):
@@ -192,6 +202,10 @@ def train(arglist):
                     pickle.dump(final_ep_ag_rewards, fp)
                 print('...Finished total of {} episodes.'.format(len(episode_rewards)))
                 break
+        env.close()
+        logger.export_scalars_to_json(str(log_dir / 'summary.json'))
+        logger.close()
+
 
 if __name__ == '__main__':
     arglist = parse_args()

@@ -158,7 +158,7 @@ class MADDPGAgentTrainer(AgentTrainer):
     def preupdate(self):
         self.replay_sample_index = None
 
-    def update(self, agents, t):
+    def update(self, agents, t, logger=None):
         if len(self.replay_buffer) < self.max_replay_buffer_len: # replay buffer is not large enough
             return
         if not t % 100 == 0:  # only update every 100 steps
@@ -189,6 +189,13 @@ class MADDPGAgentTrainer(AgentTrainer):
 
         # train p network
         p_loss = self.p_train(*(obs_n + act_n))
+
+        # log here (q_loss, p_loss)
+        if logger is not None:
+            logger.add_scalars('agent%i/losses' % self.agent_index,
+                   {'q_loss': q_loss,
+                    'p_loss': p_loss},
+                   t)
 
         self.p_update()
         self.q_update()

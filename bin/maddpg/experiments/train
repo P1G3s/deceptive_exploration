@@ -1,0 +1,3 @@
+#!/bin/bash
+rm ./policy/*
+python3.6 train.py --scenario simple_deception --num-adversaries 1 --num-episodes 40000 --exp-name exp 

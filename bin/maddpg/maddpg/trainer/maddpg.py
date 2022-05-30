@@ -18,7 +18,7 @@ def discount_with_dones(rewards, dones, gamma):
     return discounted[::-1]
 
 def make_update_exp(vals, target_vals):
-    polyak = 1.0 - 1e-2
+    polyak = 1.0 - 1e-3
     expression = []
     for var, var_target in zip(sorted(vals, key=lambda v: v.name), sorted(target_vals, key=lambda v: v.name)):
         expression.append(var_target.assign(polyak * var_target + (1.0-polyak) * var))
@@ -36,13 +36,16 @@ def p_train(make_obs_ph_n, act_space_n, p_index, p_func, q_func, optimizer, grad
 
         p_input = obs_ph_n[p_index]
 
+        #? the nueral network for policy gets defined here (output's size = 2 * size of act_space) why?
         p = p_func(p_input, int(act_pdtype_n[p_index].param_shape()[0]), scope="p_func", num_units=num_units)
+        # p_func_vas is the same as p_func
         p_func_vars = U.scope_vars(U.absolute_scope_name("p_func"))
 
-        # wrap parameters in distribution
+        # WRAP parameters in distribution
         act_pd = act_pdtype_n[p_index].pdfromflat(p)
 
         act_sample = act_pd.sample()
+
         p_reg = tf.reduce_mean(tf.square(act_pd.flatparam()))
 
         act_input_n = act_ph_n + []
@@ -53,11 +56,13 @@ def p_train(make_obs_ph_n, act_space_n, p_index, p_func, q_func, optimizer, grad
         q = q_func(q_input, 1, scope="q_func", reuse=True, num_units=num_units)[:,0]
         pg_loss = -tf.reduce_mean(q)
 
+        #???
         loss = pg_loss + p_reg * 1e-3
 
         optimize_expr = U.minimize_and_clip(optimizer, loss, p_func_vars, grad_norm_clipping)
 
         # Create callable functions
+        #? train?
         train = U.function(inputs=obs_ph_n + act_ph_n, outputs=loss, updates=[optimize_expr])
         act = U.function(inputs=[obs_ph_n[p_index]], outputs=act_sample)
         p_values = U.function([obs_ph_n[p_index]], p)
@@ -149,7 +154,11 @@ class MADDPGAgentTrainer(AgentTrainer):
         self.replay_sample_index = None
 
     def action(self, obs):
-        return self.act(obs[None])[0]
+        _act = self.act(obs[None])[0]
+        return _act
+        # # [0.8776559  0.03083612 0.06542428 0.00947752 0.01660616]
+        # # [0.06738901 0.00100085 0.44512904 0.06895491 0.41752613]
+        # return self.act(obs[None])[0]
 
     def experience(self, obs, act, rew, new_obs, done, terminal):
         # Store transition in the replay buffer.

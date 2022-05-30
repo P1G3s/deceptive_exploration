@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 import time
 import pickle
+import random
 from pathlib import Path
 from tensorboardX import SummaryWriter
 
@@ -18,16 +19,16 @@ def parse_args():
     parser = argparse.ArgumentParser("Reinforcement Learning experiments for multiagent environments")
     # Environment
     parser.add_argument("--scenario", type=str, default="simple", help="name of the scenario script")
-    parser.add_argument("--max-episode-len", type=int, default=25, help="maximum episode length")
-    parser.add_argument("--num-episodes", type=int, default=60000, help="number of episodes")
+    parser.add_argument("--max-episode-len", type=int, default=50, help="maximum episode length")
+    parser.add_argument("--num-episodes", type=int, default=40000, help="number of episodes")
     parser.add_argument("--num-adversaries", type=int, default=1, help="number of adversaries")
     parser.add_argument("--good-policy", type=str, default="maddpg", help="policy for good agents")
     parser.add_argument("--adv-policy", type=str, default="maddpg", help="policy of adversaries")
     # Core training parameters
-    parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for Adam optimizer")
-    parser.add_argument("--gamma", type=float, default=0.95, help="discount factor")
+    parser.add_argument("--lr", type=float, default=1e-3, help="learning rate for Adam optimizer")
+    parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
     parser.add_argument("--batch-size", type=int, default=1024, help="number of episodes to optimize at the same time")
-    parser.add_argument("--num-units", type=int, default=64, help="number of units in the mlp")
+    parser.add_argument("--num-units", type=int, default=128, help="number of units in the mlp")
     # Checkpointing
     parser.add_argument("--exp-name", type=str, default=None, help="name of the experiment")
     parser.add_argument("--save-dir", type=str, default="./policy/", help="directory in which training state and model should be saved")
@@ -94,6 +95,7 @@ def train(arglist):
         obs_shape_n = [env.observation_space[i].shape for i in range(env.n)]
         num_adversaries = min(env.n, arglist.num_adversaries)
         trainers = get_trainers(env, num_adversaries, obs_shape_n, arglist)
+        log_time = arglist.save_rate
         print('Using good policy {} and adv policy {}'.format(arglist.good_policy, arglist.adv_policy))
 
         # Initialize
@@ -115,20 +117,27 @@ def train(arglist):
         obs_n = env.reset()
         episode_step = 0
         train_step = 0
+        invasion_times = 0.0
+        capture_times = 0.0
         t_start = time.time()
 
         print('Starting iterations...')
         while True:
             # get action
+            action_n = []
+            explore = True if random.randrange(0,100) > 90 else False
+            # if (explore and arglist.restore):
+            #     action_n.append(np.random.dirichlet(np.ones(5),size=1)[0])
+            #     action_n.append(np.random.dirichlet(np.ones(5),size=1)[0])
+            # else:
+            #     action_n = [agent.action(obs) for agent, obs in zip(trainers,obs_n)]
             action_n = [agent.action(obs) for agent, obs in zip(trainers,obs_n)]
+
             # environment step
             new_obs_n, rew_n, done_n, info_n = env.step(action_n)
-            episode_step += 1
             done = any(done_n)
+            episode_step += 1
             terminal = (episode_step >= arglist.max_episode_len)
-            # if terminal:
-            #     rew_n[0] += 100     #adversary
-            #     rew_n[1] -= 100     #adversary
             # collect experience
             for i, agent in enumerate(trainers):
                 agent.experience(obs_n[i], action_n[i], rew_n[i], new_obs_n[i], done_n[i], terminal)
@@ -142,6 +151,10 @@ def train(arglist):
                 obs_n = env.reset()
                 episode_step = 0
                 episode_rewards.append(0)
+                if done_n[0]:
+                    capture_times += 1.0
+                elif done_n[1]:
+                    invasion_times += 1.0
                 for a in agent_rewards:
                     a.append(0)
                 agent_info.append([[]])
@@ -175,9 +188,9 @@ def train(arglist):
                 # log here
                 loss = agent.update(trainers, train_step, logger)
 
-            # save model, display training output
-            if terminal and (len(episode_rewards) % arglist.save_rate == 0):
-                U.save_state(arglist.save_dir, saver=saver)
+
+            # save model dispaly training output
+            if (terminal or done) and (len(episode_rewards) % arglist.save_rate == 0):
                 # print statement depends on whether or not there are adversaries
                 if num_adversaries == 0:
                     print("steps: {}, episodes: {}, mean episode reward: {}, time: {}".format(
@@ -186,7 +199,13 @@ def train(arglist):
                     print("steps: {}, episodes: {}, mean episode reward: {}, agent episode reward: {}, time: {}".format(
                         train_step, len(episode_rewards), np.mean(episode_rewards[-arglist.save_rate:]),
                         [np.mean(rew[-arglist.save_rate:]) for rew in agent_rewards], round(time.time()-t_start, 3)))
+                print("invasion_rate: {}, capture_rate: {}".format(
+                    (invasion_times/float(arglist.save_rate)), (capture_times/float(arglist.save_rate))))
                 t_start = time.time()
+                invasion_times = 0.0
+                capture_times = 0.0
+
+                U.save_state(arglist.save_dir, saver=saver)
                 # Keep track of final episode reward
                 final_ep_rewards.append(np.mean(episode_rewards[-arglist.save_rate:]))
                 for rew in agent_rewards:

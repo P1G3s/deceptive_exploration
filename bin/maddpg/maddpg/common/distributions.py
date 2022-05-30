@@ -28,6 +28,7 @@ class PdType(object):
     """
     def pdclass(self):
         raise NotImplementedError
+    # ??
     def pdfromflat(self, flat):
         return self.pdclass()(flat)
     def param_shape(self):
@@ -261,6 +262,8 @@ class SoftMultiCategoricalPd(Pd):  # doesn't work yet
 
 class DiagGaussianPd(Pd):
     def __init__(self, flat):
+        # How to decide the mean?
+        # flat = p
         self.flat = flat
         mean, logstd = tf.split(axis=1, num_or_size_splits=2, value=flat)
         self.mean = mean
@@ -309,7 +312,7 @@ class BernoulliPd(Pd):
 
 def make_pdtype(ac_space):
     from gym import spaces
-    if isinstance(ac_space, spaces.Box):
+    if isinstance(ac_space, spaces.Box):    # the action we takes follows GaussianPd 
         assert len(ac_space.shape) == 1
         return DiagGaussianPdType(ac_space.shape[0])
     elif isinstance(ac_space, spaces.Discrete):

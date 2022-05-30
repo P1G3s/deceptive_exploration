@@ -39,6 +39,7 @@ class Scenario(BaseScenario):
             landmark.state.p_vel = np.zeros(world.dim_p)
 
     def reward(self, agent, world):
+        print(agent.max_speed)
         dist2 = np.sum(np.square(agent.state.p_pos - world.landmarks[0].state.p_pos))
         return -dist2
 
@@ -53,4 +54,4 @@ class Scenario(BaseScenario):
         return 1
 
     def done_callback(self, agent, world):
-        return 1
+        return 0

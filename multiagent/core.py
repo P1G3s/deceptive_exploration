@@ -109,6 +109,13 @@ class World(object):
         self.last_f2g_dist = None
         self.last_f2a_dist = None
 
+        self.left_boundry = None
+        self.top_boundry = None
+        self.bottom_boundry = None
+        self.right_boundry = None
+        self.center = None
+        self.boundry = None
+
     # return all entities in the world
     @property
     def entities(self):

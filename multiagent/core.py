@@ -116,6 +116,8 @@ class World(object):
         self.center = None
         self.boundry = None
 
+        self.discrete_action = False
+
     # return all entities in the world
     @property
     def entities(self):

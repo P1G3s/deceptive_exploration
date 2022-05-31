@@ -10,6 +10,7 @@ class Scenario(BaseScenario):
         world = World()
         # set any world properties first
         # dim_c -> communication channel dimensionality
+        world.discrete_action = True
         world.dim_c = 0
         num_agents = 2
         world.num_agents = num_agents
@@ -63,10 +64,10 @@ class Scenario(BaseScenario):
             agent.state.p_pos = np.zeros(world.dim_p)
             if (agent.adversary):   # spawn defender on the upper half
                 agent.state.p_pos[0] = random.uniform(world.left_boundry, world.right_boundry)   # x
-                agent.state.p_pos[1] = random.uniform(world.center+0.2, world.top_boundry)   # y
+                agent.state.p_pos[1] = random.uniform(world.center+0.2, world.top_boundry-0.2)   # y
             else:   # spawn invader at the bottom
                 agent.state.p_pos[0] = random.uniform(world.left_boundry, world.right_boundry)   # x
-                agent.state.p_pos[1] = random.uniform(world.center-0.2, world.bottom_boundry)   # y
+                agent.state.p_pos[1] = random.uniform(world.center-0.2, world.bottom_boundry+0.2)   # y
             agent.state.p_vel = np.zeros(world.dim_p)
             agent.state.c = np.zeros(world.dim_c)
         interval = (world.right_boundry - world.left_boundry)/4    # interval between landmarks
@@ -74,7 +75,7 @@ class Scenario(BaseScenario):
             #landmark.state.p_pos = np.random.uniform(-2.5, +2.5, world.dim_p)
             landmark.state.p_pos = np.zeros(world.dim_p)
             landmark.state.p_pos[0] = world.center-interval + (interval*i)      # x
-            landmark.state.p_pos[1] = random.uniform(world.top_boundry, world.center)     # y
+            landmark.state.p_pos[1] = random.uniform(world.top_boundry-0.5, world.center+0.5)     # y
             landmark.state.p_vel = np.zeros(world.dim_p)
         adversary_agent = self.adversaries(world)[0]
         friendly_agent = self.friendly_agents(world)[0]

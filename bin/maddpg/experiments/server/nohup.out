@@ -1,0 +1,2 @@
+2022-06-01 10:18:28.525476: I tensorflow/core/platform/cpu_feature_guard.cc:140] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 AVX512F FMA
+./train: line 4: 10377 Terminated              python3.6 train.py --scenario simple_deception --num-adversaries 1 --num-episodes 80000 --exp-name exp --max-episode-len 150

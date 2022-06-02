@@ -1,2 +1,22 @@
-GAMMA
-Penalty for not reaching the goal
+entropy
+P(objective_? | trajectory)
+posibility of reaching the goal = a nn maybe?
+action = argmax(action)((posibility of reaching the goal) * Q_real_R(s,a) + (1-posibility of reaching the goal) * max(Q_other_R(s,a)))
+some constraints of entropy maybe?
+
+
+
+
+
+
+
+
+
+
+
+
+
+TOREAD
+1.Countering deception in multiagent reinforcement learning. In Proceedings of the Workshop on Trust, Privacy, Deception and Fraud in Agent Societies
+2.On deception detection in multi-agent systems and deception intent
+3.Modelling deception using theory of mind in multi-agent systems

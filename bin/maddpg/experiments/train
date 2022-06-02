@@ -1,5 +1,5 @@
 #!/bin/bash
 rm ./policy/*
 rm -r ./logs/*
-python3.6 train.py --scenario simple_deception --num-adversaries 1 --num-episodes 50000 --exp-name exp --max-episode-len 60
+python3.6 train.py --scenario simple_deception --num-adversaries 1 --num-episodes 100000 --exp-name exp --max-episode-len 80 
 # python3.6 train.py --scenario simple --num-adversaries 0 --num-episodes 40000 --exp-name exp --max-episode-len 25
